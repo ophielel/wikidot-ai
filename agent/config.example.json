@@ -1,0 +1,23 @@
+{
+  "$comment": "Copy to ~/.wikidot-ai/config.json (or ./.wikidot-ai.json). Never commit real credentials.",
+
+  "username": "your-wikidot-username",
+  "password": "your-wikidot-password",
+  "domain": "wikidot.com",
+
+  "defaultSite": "scp-wiki",
+  "mode": "confirm",
+  "allowedSites": ["scp-wiki", "scp-jp"],
+  "maxIterations": 30,
+
+  "auditLog": true,
+  "auditPath": "/absolute/path/to/audit.jsonl",
+
+  "llm": {
+    "baseUrl": "https://api.deepseek.com/v1",
+    "apiKey": "sk-your-llm-api-key",
+    "model": "deepseek-chat",
+    "temperature": 0.2,
+    "maxTokens": null
+  }
+}

@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <title>Wikidot Operator</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">跳到主内容</a>
+
+    <header class="topbar">
+      <p class="brand">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span class="brand-name">Wikidot Operator</span>
+      </p>
+      <p class="conn" id="conn">
+        <span class="dot" data-state="idle" aria-hidden="true"></span>
+        <span id="conn-text">未连接</span>
+      </p>
+      <nav class="views" aria-label="切换视图">
+        <button type="button" class="view-tab" data-view="connect" aria-current="page">连接</button>
+        <button type="button" class="view-tab" data-view="console">控制台</button>
+      </nav>
+    </header>
+
+    <main id="main">
+      <section class="view" id="view-connect" aria-labelledby="connect-title">
+        <div class="pane">
+          <h1 id="connect-title">连接账号与大模型</h1>
+          <p class="lede">
+            凭据只保存在运行服务器的进程内存里。勾选下面的保存项后，会写入本机
+            <code>~/.wikidot-ai/config.json</code>，文件权限设为 0600。
+          </p>
+
+          <form id="connect-form" novalidate>
+            <fieldset>
+              <legend>Wikidot 账号</legend>
+              <div class="field">
+                <label for="username">用户名</label>
+                <input id="username" name="username" autocomplete="username" required />
+                <p class="hint">Wikidot 登录名，不是页面上的显示名。</p>
+              </div>
+              <div class="field">
+                <label for="password">密码</label>
+                <input
+                  id="password"
+                  name="password"
+                  type="password"
+                  autocomplete="current-password"
+                  required
+                />
+              </div>
+              <div class="field">
+                <label for="site">默认站点</label>
+                <input id="site" name="site" placeholder="scp-wiki" required />
+                <p class="hint">站点 UNIX 名，例如 scp-wiki；也可以直接粘贴 https://scp-wiki.wikidot.com/，会自动转换。</p>
+              </div>
+              <fieldset class="modes">
+                <legend>写入权限</legend>
+                <label class="radio">
+                  <input type="radio" name="mode" value="confirm" checked />
+                  <span>
+                    <strong>每次确认</strong>
+                    写操作前弹出内容预览，你点允许才会发布。
+                  </span>
+                </label>
+                <label class="radio">
+                  <input type="radio" name="mode" value="readonly" />
+                  <span>
+                    <strong>只读</strong>
+                    任何写操作都会被拒绝，只能搜索和读取。
+                  </span>
+                </label>
+                <label class="radio">
+                  <input type="radio" name="mode" value="auto" />
+                  <span>
+                    <strong>自动发布</strong>
+                    agent 直接发帖，不再询问。适合无人值守。
+                  </span>
+                </label>
+              </fieldset>
+            </fieldset>
+
+            <fieldset>
+              <legend>大模型（OpenAI 兼容接口）</legend>
+              <div class="field">
+                <label for="base-url">接口地址</label>
+                <input id="base-url" name="baseUrl" placeholder="https://api.deepseek.com/v1" required />
+                <p class="hint">需要兼容 /chat/completions 与 function calling。</p>
+              </div>
+              <div class="field">
+                <label for="api-key">API Key</label>
+                <input id="api-key" name="apiKey" type="password" autocomplete="off" required />
+              </div>
+              <div class="field">
+                <label for="model">模型名称</label>
+                <input id="model" name="model" placeholder="deepseek-chat" required />
+              </div>
+            </fieldset>
+
+            <label class="check">
+              <input type="checkbox" id="remember" name="remember" />
+              保存到本机 ~/.wikidot-ai/config.json
+            </label>
+
+            <div class="actions">
+              <button type="submit" class="btn primary" id="connect-btn">连接并检查</button>
+              <p class="form-status" id="connect-status" role="status" aria-live="polite"></p>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <section class="view" id="view-console" aria-labelledby="console-title" hidden>
+        <aside class="rail" aria-label="会话信息">
+          <div class="rail-block">
+            <div class="rail-head">
+              <h2 class="rail-title">对话</h2>
+              <button type="button" class="btn small" id="new-conversation">新对话</button>
+            </div>
+            <ul class="convo-list" id="convo-list"></ul>
+          </div>
+
+          <div class="rail-block">
+            <h2 class="rail-title" id="console-title">会话</h2>
+            <dl class="facts">
+              <div><dt>账号</dt><dd id="fact-account">未知</dd></div>
+              <div><dt>站点</dt><dd id="fact-site">未知</dd></div>
+              <div><dt>写入权限</dt><dd id="fact-mode">未知</dd></div>
+              <div><dt>模型</dt><dd id="fact-model">未知</dd></div>
+            </dl>
+          </div>
+
+          <div class="rail-actions">
+            <button type="button" class="btn" id="doctor-btn">运行体检</button>
+            <button type="button" class="btn" id="disconnect-btn">断开连接</button>
+          </div>
+          <pre class="doctor-log" id="doctor-log" hidden></pre>
+        </aside>
+
+        <div class="work">
+          <div class="log" id="log" role="log" aria-live="polite" aria-label="对话记录"></div>
+
+          <form class="composer" id="composer">
+            <label class="sr-only" for="message">给 agent 的请求</label>
+            <textarea
+              id="message"
+              name="message"
+              rows="2"
+              placeholder="例如：在 scp-wiki 的 scp-173 页面评论：写得很好"
+              required
+            ></textarea>
+            <button type="submit" class="btn primary" id="send-btn">发送给 agent</button>
+          </form>
+        </div>
+      </section>
+    </main>
+
+    <div class="modal-layer" id="modal-layer" hidden>
+      <div
+        class="modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modal-title"
+        aria-describedby="modal-body"
+        tabindex="-1"
+      >
+        <h2 id="modal-title">需要你确认</h2>
+        <p class="modal-note">下面是 agent 准备提交到 Wikidot 的完整内容。</p>
+        <pre class="modal-body" id="modal-body"></pre>
+        <div class="modal-actions">
+          <button type="button" class="btn" id="modal-decline">拒绝</button>
+          <button type="button" class="btn primary" id="modal-approve">允许发布</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="/app.js" defer></script>
+  </body>
+</html>

@@ -19,6 +19,7 @@ This document is a project guide for AI agents.
 - Forum operations (categories, threads, posts)
 - Private message sending and receiving
 - Authentication (public information accessible without login)
+- `agent/`: LLM tool-calling agent + CLI that operates a real account (`wikidot-ai`)
 
 ## Directory Structure
 
@@ -80,6 +81,16 @@ bun test:cov          # With coverage
 
 # Build
 bun run build
+
+# AI agent (works with npm too; does not require bun)
+npm run agent -- --help          # CLI help
+npm run agent -- setup           # write ~/.wikidot-ai/config.json
+npm run agent -- doctor --llm    # verify Wikidot + LLM connectivity
+npm run agent -- "<request>"     # one-shot request
+npm run agent:typecheck          # tsc -p agent/tsconfig.json
+npm run agent:test               # node --import tsx --test agent/test/*.test.ts
+npm run agent:serve              # web console on 127.0.0.1:8787
+npm run agent:build              # bundle to dist-agent/
 ```
 
 ## Architecture
@@ -272,3 +283,44 @@ Additional checks:
 - Return errors using `neverthrow` Result type (avoid throwing exceptions)
 - Public APIs should follow the Accessor pattern
 - Maintain compatibility with Python version (wikidot.py)
+
+## AI Agent Layer (`agent/`)
+
+The agent is a separate application that consumes the library; `src/` must stay
+free of agent-specific code. Key rules:
+
+- `agent/src/agent.ts` owns the LLM tool-calling loop; `agent/src/tools/` defines
+  the model-facing tools. `readTool` / `writeTool` builders in `tools/build.ts`
+  enforce the shared contract: read-only `prepare()` → policy gate → execute → audit.
+- Every mutating tool MUST go through `writeTool` so `dryRun`, `allowedSites`,
+  confirmation and auditing cannot be bypassed by the model.
+- Write policy is config-driven (`config.mode`), never model-driven.
+- `agent/src/ops.ts` is the only place that calls the Wikidot SDK; it returns
+  serializable plain objects and throws `WikidotAgentError`.
+- Tests use Node's built-in runner (`node --import tsx --test`), not bun, so the
+  agent stays runnable without bun. LLM behaviour is tested against a local
+  `node:http` mock server, never the real API.
+- `agent/src/server/` serves the web console: `server.ts` owns routing, SSE and
+  static files; `sessions.ts` owns per-browser agent state, the conversation list
+  (each conversation has its own `WikidotAgent` history) and the confirmation
+  bridge. The browser never receives credentials.
+- `agent/src/agent.ts` is budgeted: `maxIterations` (default 30) is a wrap-up
+  threshold, not a failure. Hitting it triggers a tools-disabled summary call and
+  returns `truncated: true`; never throw away finished tool work.
+- `agent/static/` is the frontend (plain HTML/CSS/JS, no build step), served from
+  the source tree in dev and copied into `dist-agent/` by tsup `publicDir`.
+- `agent/DESIGN.md` holds the UI direction; follow the antislop skills for any UI
+  change. UI behaviour is covered by `agent/test/web-ui.test.ts` (jsdom).
+- Run `npx biome check --write agent/` before committing agent changes.
+
+<!-- antislop:start -->
+## antislop
+For UI, copy, people, mobile layout, or code comments work, use the installed
+antislop skills: `antislop` (core) plus the skill for the task,
+one of `antislop-ui`, `antislop-copywriting`, `antislop-human`,
+`antislop-layoutmobile`, `antislop-code`.
+
+UI direction for the web console lives in `agent/DESIGN.md` (agent-authored; the
+owner can replace it). Before starting UI work, ask the user when antislop
+applies: during the work, or after it is done.
+<!-- antislop:end -->
