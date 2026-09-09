@@ -225,6 +225,14 @@ npx biome check --write agent/   # 格式化 + lint
 
 项目结构、测试脚本和实现细节见 [`agent/README.md`](agent/README.md)。
 
+## 致谢
+
+本项目是 [ukwhatn/wikidot-ts](https://github.com/ukwhatn/wikidot-ts) 的 fork。底层的
+TypeScript Wikidot 库由 [ukwhatn](https://github.com/ukwhatn) 开发，采用 MIT 许可证；
+本仓库在其之上增加了 AI agent、网页控制台和文档。原始版权与许可证声明见 [LICENSE](LICENSE)。
+
+上游库本身是 [wikidot.py](https://github.com/ukwhatn/wikidot.py) 的 TypeScript 移植版，一并致谢。
+
 ## 底层库
 
 `wikidot-ts` 的完整 API 文档见 [`docs/library.md`](docs/library.md)。
